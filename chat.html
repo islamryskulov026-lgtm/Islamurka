@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Чат</title>
+    <style>
+        body {
+            font-family: Arial;
+            background: #1e1e2f;
+            color: white;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            display: flex;
+            height: 90vh;
+            background: #2d2d44;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .friends {
+            width: 200px;
+            background: #1a1a2e;
+            padding: 10px;
+            border-right: 1px solid #444;
+        }
+        .friends h3 {
+            margin-top: 0;
+            color: gold;
+        }
+        .friend {
+            padding: 10px;
+            margin: 5px 0;
+            background: #2d2d44;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .friend:hover {
+            background: #3a3a5a;
+        }
+        .chat {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        .messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        .message {
+            margin: 10px 0;
+            padding: 10px;
+            background: #1a1a2e;
+            border-radius: 5px;
+        }
+        .my-message {
+            background: #2a5a5a;
+            margin-left: 20%;
+        }
+        .time {
+            font-size: 10px;
+            color: #888;
+            margin-left: 10px;
+        }
+        .input-area {
+            display: flex;
+            padding: 10px;
+            background: #1a1a2e;
+        }
+        input {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            margin-right: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            background: gold;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .add-friend {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔥 Чат Ислама 🔥</h1>
+    <p>Привет, {{ username }}! <a href="/logout" style="color: gold;">Выйти</a></p>
+    
+    <div class="container">
+        <div class="friends">
+            <h3>Друзья</h3>
+            <div id="friends-list">
+                {% for friend in friends %}
+                    <div class="friend" onclick="selectFriend('{{ friend }}')">{{ friend }}</div>
+                {% endfor %}
+            </div>
+            
+            <div class="add-friend">
+                <input type="text" id="new-friend" placeholder="Имя друга">
+                <button onclick="addFriend()">➕ Добавить</button>
+            </div>
+        </div>
+        
+        <div class="chat">
+            <div class="messages" id="messages"></div>
+            
+            <div class="input-area">
+                <input type="text" id="message" placeholder="Сообщение" onkeypress="checkEnter(event)">
+                <button onclick="sendMessage()">➡️ Отправить</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let currentFriend = null;
+        
+        function selectFriend(friend) {
+            currentFriend = friend;
+            document.getElementById('messages').innerHTML = '';
+            loadMessages();
+        }
+        
+        function loadMessages() {
+            if (!currentFriend) return;
+            
+            fetch('/get_messages?with=' + currentFriend)
+                .then(r => r.json())
+                .then(data => {
+                    let html = '';
+                    data.messages.forEach(msg => {
+                        let cls = msg.from === '{{ username }}' ? 'my-message' : '';
+                        html += `<div class="message ${cls}">
+                            <strong>${msg.from}:</strong> ${msg.message}
+                            <span class="time">${msg.time}</span>
+                        </div>`;
+                    });
+                    document.getElementById('messages').innerHTML = html;
+                    document.getElementById('messages').scrollTop = 999999;
+                });
+        }
+        
+        function sendMessage() {
+            let msg = document.getElementById('message').value;
+            if (!msg || !currentFriend) return;
+            
+            fetch('/send_message', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: 'to_user=' + currentFriend + '&message=' + encodeURIComponent(msg)
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('message').value = '';
+                    loadMessages();
+                }
+            });
+        }
+        
+        function addFriend() {
+            let friend = document.getElementById('new-friend').value;
+            if (!friend) return;
+            
+            fetch('/add_friend', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: 'friend_name=' + friend
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Не удалось добавить друга');
+                }
+            });
+        }
+        
+        function checkEnter(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        }
+        
+        setInterval(() => {
+            if (currentFriend) {
+                loadMessages();
+            }
+        }, 2000);
+    </script>
+</body>
+</html>
